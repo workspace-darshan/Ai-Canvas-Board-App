@@ -1,26 +1,331 @@
+/* ============================================================
+   AI Canvas Board — Global Styles
+   Premium dark-theme design system inspired by Figma/Excalidraw
+   ============================================================ */
+
 @import "tailwindcss";
 
+/* ---- CSS Custom Properties (Design Tokens) ---- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surface palette — deep charcoals with blue undertone */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #111118;
+  --bg-surface: #16161e;
+  --bg-elevated: #1c1c27;
+  --bg-hover: #22222e;
+  --bg-active: #2a2a38;
+
+  /* Accent — vibrant purple-blue gradient palette */
+  --accent-primary: #7c5cfc;
+  --accent-secondary: #6366f1;
+  --accent-glow: rgba(124, 92, 252, 0.25);
+  --accent-subtle: rgba(124, 92, 252, 0.08);
+
+  /* Text */
+  --text-primary: #f0f0f5;
+  --text-secondary: #a0a0b8;
+  --text-tertiary: #6b6b80;
+  --text-disabled: #45455a;
+
+  /* Borders */
+  --border-default: #2a2a3a;
+  --border-subtle: #1e1e2e;
+  --border-accent: rgba(124, 92, 252, 0.4);
+
+  /* Status */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(124, 92, 252, 0.15);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Z-Index Scale */
+  --z-sidebar: 40;
+  --z-toolbar: 50;
+  --z-prompt: 60;
+  --z-modal: 70;
+  --z-toast: 80;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ---- Base Resets ---- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- Scrollbar Styling ---- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ---- Selection ---- */
+::selection {
+  background: var(--accent-primary);
+  color: white;
+}
+
+/* ---- tldraw Overrides — Force dark theme on canvas ---- */
+.tl-container {
+  --color-background: #0a0a0f !important;
+  --color-text: var(--text-primary) !important;
+}
+
+/* Force tldraw background to our dark color */
+.tl-background {
+  background-color: #0a0a0f !important;
+}
+
+/* Style the canvas area itself */
+.tl-canvas {
+  background-color: #0a0a0f !important;
+}
+
+/* Hide tldraw's default UI since we provide our own */
+.tl-ui {
+  display: none !important;
+}
+
+/* ---- Utility Classes ---- */
+.glass {
+  background: rgba(22, 22, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-default);
+}
+
+.glass-hover:hover {
+  background: rgba(34, 34, 46, 0.9);
+  border-color: var(--border-accent);
+}
+
+/* Glow effect for active/focused elements */
+.glow-accent {
+  box-shadow: var(--shadow-glow);
+}
+
+/* Smooth fade-in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.animate-fade-in {
+  animation: fadeIn var(--transition-base) ease-out;
+}
+
+/* Slide up for prompt bar */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-slow) ease-out;
+}
+
+/* Pulse glow for AI loading state */
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(124, 92, 252, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(124, 92, 252, 0.5);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* Spin for loading */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Pulse for skeleton loading */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ---- Tool Button Styles ---- */
+.tool-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.tool-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.tool-button.active {
+  background: var(--accent-subtle);
+  color: var(--accent-primary);
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-glow);
+}
+
+.tool-button .tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.tool-button:hover .tooltip {
+  opacity: 1;
+}
+
+/* ---- Sidebar Common ---- */
+.sidebar {
+  position: fixed;
+  top: 56px;
+  bottom: 0;
+  width: 260px;
+  z-index: var(--z-sidebar);
+  transition: transform var(--transition-base);
+}
+
+.sidebar-left {
+  left: 0;
+  border-right: 1px solid var(--border-default);
+}
+
+.sidebar-right {
+  right: 0;
+  border-left: 1px solid var(--border-default);
+}
+
+.sidebar-left.collapsed {
+  transform: translateX(-100%);
+}
+
+.sidebar-right.collapsed {
+  transform: translateX(100%);
+}
+
+/* ---- Top Bar ---- */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  z-index: var(--z-toolbar);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+/* ---- AI Prompt Bar ---- */
+.prompt-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-prompt);
+  width: min(680px, calc(100vw - 48px));
+}
+
+/* ---- Divider ---- */
+.divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-default);
+  margin: 0 4px;
 }
