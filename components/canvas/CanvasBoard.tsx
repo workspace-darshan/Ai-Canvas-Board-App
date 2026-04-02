@@ -10,12 +10,61 @@ import { Tldraw, Editor, TLShapeId } from "tldraw";
 import "tldraw/tldraw.css";
 import { useCanvasStore } from "@/store/canvasStore";
 import type { Tool } from "@/types";
+import { getApiUrl } from "@/lib/config";
+import { toast } from "sonner";
 
 export default function CanvasBoard() {
-  const { setEditor, setZoomLevel, editor, setActiveTool, activeTool, currentGeoType } = useCanvasStore();
+  const { setEditor, setZoomLevel, editor, setActiveTool, activeTool, currentGeoType, boardId, setBoardTitle } = useCanvasStore();
   const [selectedShape, setSelectedShape] = useState<{ id: TLShapeId; bounds: any } | null>(null);
   const [cursorGhost, setCursorGhost] = useState<{ type: string; x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isLoadingBoard, setIsLoadingBoard] = useState(false);
+
+  // Load board content from API when editor is ready and boardId is set
+  useEffect(() => {
+    if (!editor || !boardId || boardId === "local" || isLoadingBoard) return;
+
+    const loadBoard = async () => {
+      setIsLoadingBoard(true);
+      try {
+        const response = await fetch(getApiUrl(`/api/boards/${boardId}`));
+        
+        if (response.ok) {
+          const board = await response.json();
+          
+          // Set board title
+          if (board.title) {
+            setBoardTitle(board.title);
+          }
+          
+          // Load board content into editor
+          if (board.content) {
+            try {
+              const snapshot = JSON.parse(board.content);
+              // Use the correct tldraw method to load snapshot
+              editor.store.mergeRemoteChanges(() => {
+                editor.store.put(Object.values(snapshot.store));
+              });
+              console.log("Board content loaded successfully");
+            } catch (error) {
+              console.error("Failed to parse board content:", error);
+              toast.error("Failed to load board content");
+            }
+          }
+        } else {
+          console.error("Failed to fetch board");
+          toast.error("Failed to load board");
+        }
+      } catch (error) {
+        console.error("Error loading board:", error);
+        toast.error("Failed to load board");
+      } finally {
+        setIsLoadingBoard(false);
+      }
+    };
+
+    loadBoard();
+  }, [editor, boardId, setBoardTitle]); // Only run when editor or boardId changes
 
   /**
    * Called when the tldraw editor mounts.

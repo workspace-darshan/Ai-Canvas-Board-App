@@ -10,18 +10,19 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useCanvasStore } from "@/store/canvasStore";
 import { Loader2, Sparkles } from "lucide-react";
+import LiveblocksProvider from "@/components/canvas/LiveblocksProvider";
 
 // Dynamic imports to prevent SSR issues with tldraw (it uses browser APIs)
-const CanvasBoard = dynamic(
-  () => import("@/components/canvas/CanvasBoard"),
+const CollaborativeCanvas = dynamic(
+  () => import("@/components/canvas/CollaborativeCanvas"),
+  { ssr: false }
+);
+const TopBar = dynamic(
+  () => import("@/components/canvas/TopBarWithLiveblocks"),
   { ssr: false }
 );
 const Toolbar = dynamic(
   () => import("@/components/canvas/Toolbar"),
-  { ssr: false }
-);
-const TopBar = dynamic(
-  () => import("@/components/canvas/TopBar"),
   { ssr: false }
 );
 const AIPromptBar = dynamic(
@@ -32,10 +33,7 @@ const PropertiesPanel = dynamic(
   () => import("@/components/canvas/PropertiesPanel"),
   { ssr: false }
 );
-const PageManager = dynamic(
-  () => import("@/components/canvas/PageManager"),
-  { ssr: false }
-);
+
 const ZoomIndicator = dynamic(
   () => import("@/components/canvas/ZoomIndicator"),
   { ssr: false }
@@ -111,39 +109,29 @@ export default function BoardPage() {
   }
 
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden",
-        background: "var(--bg-primary)",
-        position: "relative",
-      }}
-    >
-      {/* 
-        Layer order:
-        1. CanvasBoard (z-index: 1) — full viewport tldraw canvas
-        2. TopBar (z-index: 50) — fixed header
-        3. Toolbar (z-index: 50) — left tools panel
-        4. PropertiesPanel (z-index: 50) — right properties panel
-        5. PageManager (z-index: 50) — bottom-left page tabs
-        6. ZoomIndicator (z-index: 50) — bottom-right zoom
-        7. AIPromptBar (z-index: 60) — bottom-center AI input
-      */}
+    <LiveblocksProvider boardId={params.id as string}>
+      <div
+        style={{
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          background: "var(--bg-primary)",
+          position: "relative",
+        }}
+      >
+        {/* The tldraw canvas fills the entire viewport */}
+        <CollaborativeCanvas />
 
-      {/* The tldraw canvas fills the entire viewport */}
-      <CanvasBoard />
+        {/* UI overlays on top of the canvas */}
+        <TopBar />
+        <Toolbar />
+        <PropertiesPanel />
+        <ZoomIndicator />
+        <AIPromptBar />
 
-      {/* UI overlays on top of the canvas */}
-      <TopBar />
-      <Toolbar />
-      <PropertiesPanel />
-      <PageManager />
-      <ZoomIndicator />
-      <AIPromptBar />
-
-      {/* Invisible keyboard shortcut handler */}
-      <KeyboardShortcuts />
-    </div>
+        {/* Invisible keyboard shortcut handler */}
+        <KeyboardShortcuts />
+      </div>
+    </LiveblocksProvider>
   );
 }

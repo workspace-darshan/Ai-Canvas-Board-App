@@ -6,19 +6,29 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import CanvasBoard from "@/components/canvas/CanvasBoard";
-import TopBar from "@/components/canvas/TopBar";
+import dynamic from "next/dynamic";
 import Toolbar from "@/components/canvas/Toolbar";
+import LiveblocksProvider from "@/components/canvas/LiveblocksProvider";
 import { useCanvasStore } from "@/store/canvasStore";
 import { Edit } from "lucide-react";
 import { getApiUrl } from "@/lib/config";
 
+const CollaborativeCanvas = dynamic(
+  () => import("@/components/canvas/CollaborativeCanvas"),
+  { ssr: false }
+);
+const TopBar = dynamic(
+  () => import("@/components/canvas/TopBarWithLiveblocks"),
+  { ssr: false }
+);
+
 export default function SharedBoardEditPage() {
   const params = useParams();
   const token = params.token as string;
-  const { setBoardTitle, editor } = useCanvasStore();
+  const { setBoardTitle, setBoardId } = useCanvasStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [boardData, setBoardData] = useState<any>(null);
 
   useEffect(() => {
     loadSharedBoard();
@@ -39,17 +49,8 @@ export default function SharedBoardEditPage() {
       }
 
       setBoardTitle(data.title);
-      
-      // Load board content if available
-      if (data.content && editor) {
-        try {
-          const snapshot = JSON.parse(data.content);
-          editor.store.put(Object.values(snapshot.store));
-        } catch (e) {
-          console.error("Failed to load board content:", e);
-        }
-      }
-
+      setBoardId(data._id);
+      setBoardData(data);
       setIsLoading(false);
     } catch (error: any) {
       console.error("Failed to load shared board:", error);
@@ -125,32 +126,34 @@ export default function SharedBoardEditPage() {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "var(--bg-primary)" }}>
-      {/* Edit Access Banner */}
-      <div
-        style={{
-          position: "fixed",
-          top: 56,
-          left: 0,
-          right: 0,
-          zIndex: 49,
-          background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))",
-          padding: "8px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        <Edit size={16} color="white" />
-        <span style={{ color: "white", fontSize: 13, fontWeight: 600 }}>
-          You have full edit access to this shared board
-        </span>
-      </div>
+    <LiveblocksProvider boardId={boardData?._id || ""}>
+      <div style={{ position: "fixed", inset: 0, background: "var(--bg-primary)" }}>
+        {/* Edit Access Banner */}
+        <div
+          style={{
+            position: "fixed",
+            top: 56,
+            left: 0,
+            right: 0,
+            zIndex: 49,
+            background: "linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))",
+            padding: "8px 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <Edit size={16} color="white" />
+          <span style={{ color: "white", fontSize: 13, fontWeight: 600 }}>
+            You have full edit access to this shared board
+          </span>
+        </div>
 
-      <TopBar />
-      <Toolbar />
-      <CanvasBoard />
-    </div>
+        <TopBar />
+        <Toolbar />
+        <CollaborativeCanvas />
+      </div>
+    </LiveblocksProvider>
   );
 }

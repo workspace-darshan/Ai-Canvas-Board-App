@@ -6,19 +6,29 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import CanvasBoard from "@/components/canvas/CanvasBoard";
-import TopBar from "@/components/canvas/TopBar";
+import dynamic from "next/dynamic";
 import Toolbar from "@/components/canvas/Toolbar";
+import LiveblocksProvider from "@/components/canvas/LiveblocksProvider";
 import { useCanvasStore } from "@/store/canvasStore";
 import { Eye } from "lucide-react";
 import { getApiUrl } from "@/lib/config";
 
+const CollaborativeCanvas = dynamic(
+  () => import("@/components/canvas/CollaborativeCanvas"),
+  { ssr: false }
+);
+const TopBar = dynamic(
+  () => import("@/components/canvas/TopBarWithLiveblocks"),
+  { ssr: false }
+);
+
 export default function SharedBoardViewPage() {
   const params = useParams();
   const token = params.token as string;
-  const { setBoardTitle, editor } = useCanvasStore();
+  const { setBoardTitle, editor, setBoardId } = useCanvasStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [boardData, setBoardData] = useState<any>(null);
 
   useEffect(() => {
     loadSharedBoard();
@@ -26,7 +36,7 @@ export default function SharedBoardViewPage() {
 
   useEffect(() => {
     if (editor) {
-      // Set editor to readonly mode
+      // Set editor to readonly mode for view-only access
       editor.updateInstanceState({ isReadonly: true });
     }
   }, [editor]);
@@ -46,17 +56,8 @@ export default function SharedBoardViewPage() {
       }
 
       setBoardTitle(data.title);
-      
-      // Load board content if available
-      if (data.content && editor) {
-        try {
-          const snapshot = JSON.parse(data.content);
-          editor.store.put(Object.values(snapshot.store));
-        } catch (e) {
-          console.error("Failed to load board content:", e);
-        }
-      }
-
+      setBoardId(data._id);
+      setBoardData(data);
       setIsLoading(false);
     } catch (error: any) {
       console.error("Failed to load shared board:", error);
@@ -132,32 +133,34 @@ export default function SharedBoardViewPage() {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "var(--bg-primary)" }}>
-      {/* Readonly Banner */}
-      <div
-        style={{
-          position: "fixed",
-          top: 56,
-          left: 0,
-          right: 0,
-          zIndex: 49,
-          background: "linear-gradient(135deg, #f59e0b, #d97706)",
-          padding: "8px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        <Eye size={16} color="white" />
-        <span style={{ color: "white", fontSize: 13, fontWeight: 600 }}>
-          You are viewing this board in read-only mode
-        </span>
-      </div>
+    <LiveblocksProvider boardId={boardData?._id || ""}>
+      <div style={{ position: "fixed", inset: 0, background: "var(--bg-primary)" }}>
+        {/* Readonly Banner */}
+        <div
+          style={{
+            position: "fixed",
+            top: 56,
+            left: 0,
+            right: 0,
+            zIndex: 49,
+            background: "linear-gradient(135deg, #f59e0b, #d97706)",
+            padding: "8px 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <Eye size={16} color="white" />
+          <span style={{ color: "white", fontSize: 13, fontWeight: 600 }}>
+            You are viewing this board in read-only mode
+          </span>
+        </div>
 
-      <TopBar />
-      <Toolbar />
-      <CanvasBoard />
-    </div>
+        <TopBar />
+        <Toolbar />
+        <CollaborativeCanvas />
+      </div>
+    </LiveblocksProvider>
   );
 }
