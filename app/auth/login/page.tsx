@@ -5,6 +5,7 @@
 "use client";
 
 import { useState } from "react";
+import { Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -12,7 +13,7 @@ import { Loader2, Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import AuthLayout from "@/components/auth/AuthLayout";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -322,20 +323,36 @@ export default function LoginPage() {
         </form>
 
         {/* Sign Up Link */}
-        <div style={{ marginTop: 24, textAlign: "center" }}>
-          <span style={{ fontSize: 13, color: "#6b6b80" }}>
-            Don't have an account?{" "}
-          </span>
-          <Link href="/auth/register" style={{
-            fontSize: 13,
-            color: "#4f6ef7",
-            fontWeight: 600,
-            textDecoration: "none",
-          }}>
-            Sign up
-          </Link>
-        </div>
+        <p style={{
+          fontSize: 13,
+          color: "#6b6b80",
+          textAlign: "center",
+          marginTop: 24,
+        }}>
+          Don't have an account? <Link href="/auth/register" style={{ color: "#4f6ef7", textDecoration: "none" }}>Sign up here</Link>
+        </p>
       </div>
     </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthLayout>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+          }}>
+            <div style={{ color: "var(--text-secondary)" }}>Loading...</div>
+          </div>
+        </AuthLayout>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
