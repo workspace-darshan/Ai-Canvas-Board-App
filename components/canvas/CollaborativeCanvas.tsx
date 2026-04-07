@@ -19,6 +19,19 @@ export default function CollaborativeCanvas() {
   const isLoadingRef = useRef(false);
   const [myPresence, updateMyPresence] = useMyPresence();
   const others = useOthers();
+  const [isContentLoaded, setIsContentLoaded] = useState(false);
+
+  // Fallback timeout to ensure loading screen doesn't stay forever
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isContentLoaded) {
+        console.warn("Loading timeout reached, showing canvas anyway");
+        setIsContentLoaded(true);
+      }
+    }, 10000); // 10 second max wait
+
+    return () => clearTimeout(timeout);
+  }, [isContentLoaded]);
 
   // Get snapshot from Liveblocks storage
   const snapshot = useStorage((root) => root.snapshot) as any;
@@ -42,16 +55,24 @@ export default function CollaborativeCanvas() {
       if (snapshot && snapshot.store && !isLoadingRef.current) {
         isLoadingRef.current = true;
         try {
-          editor.store.mergeRemoteChanges(() => {
-            const records = Object.values(snapshot.store);
-            if (records.length > 0) {
+          const records = Object.values(snapshot.store);
+          if (records.length > 0) {
+            editor.store.mergeRemoteChanges(() => {
               editor.store.put(records as any);
-            }
-          });
+            });
+            // Mark content as loaded after shapes are rendered
+            setTimeout(() => setIsContentLoaded(true), 300);
+          } else {
+            // Empty board, show immediately
+            setIsContentLoaded(true);
+          }
         } catch (e) {
           console.error("Failed to load snapshot:", e);
+          setIsContentLoaded(true); // Show canvas even if loading fails
         }
-        isLoadingRef.current = false;
+      } else {
+        // No content to load, show canvas immediately
+        setIsContentLoaded(true);
       }
 
       // Track selection changes
@@ -141,6 +162,59 @@ export default function CollaborativeCanvas() {
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1 }}>
+      {/* Loading Overlay */}
+      {!isContentLoaded && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.8)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 16,
+            zIndex: 10000,
+          }}
+        >
+          {/* Spinner */}
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              border: "4px solid rgba(255, 255, 255, 0.1)",
+              borderTop: "4px solid #6366f1",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          
+          {/* Loading Text */}
+          <div
+            style={{
+              color: "white",
+              fontSize: 16,
+              fontWeight: 600,
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            Loading board content...
+          </div>
+          
+          {/* Subtext */}
+          <div
+            style={{
+              color: "rgba(255, 255, 255, 0.6)",
+              fontSize: 13,
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            Please wait while we fetch your shapes
+          </div>
+        </div>
+      )}
+      
       <Tldraw
         onMount={handleMount}
         hideUi

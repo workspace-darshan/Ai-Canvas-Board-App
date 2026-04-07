@@ -61,37 +61,233 @@ export default function AIPromptBar() {
 
   /**
    * Handle prompt submission.
-   * In Phase 4 this will call the Groq backend;
-   * for now we show a toast preview.
+   * Calls the Gemini backend and processes the response
    */
   const handleSubmit = async () => {
     if (!prompt.trim() || isAILoading) return;
+
+    const { editor } = useCanvasStore.getState();
+    if (!editor) {
+      toast.error("Canvas not ready");
+      return;
+    }
 
     setAILoading(true);
     toast.loading("AI is thinking...", { id: "ai-prompt" });
 
     try {
-      // Phase 4: Replace with actual API call to backend
-      // const response = await fetch(`${BACKEND_URL}/api/ai/prompt`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ prompt: prompt.trim() }),
-      // });
-      // const data = await response.json();
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-      // Simulate AI response for Phase 1
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      toast.success("AI feature will be connected in Phase 4!", {
-        id: "ai-prompt",
-        description: `Your prompt: "${prompt.trim()}"`,
+      const response = await fetch(`${BACKEND_URL}/api/ai/prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt.trim() }),
       });
+      console.log("response", response)
+
+      if (!response.ok) {
+        throw new Error("Failed to process AI prompt");
+      }
+
+      const data = await response.json();
+
+      console.log("AI Response:", data); // Debug log
+
+      // Process the AI response based on action type
+      if (data.action === "add_shapes") {
+        // Add shapes to canvas
+        const shapes = data.data.shapes || [];
+        const viewport = editor.getViewportScreenCenter();
+        
+        console.log("Creating shapes:", shapes); // Debug log
+        console.log("Viewport center:", viewport); // Debug log
+
+        shapes.forEach((shape: any, index: number) => {
+          // Use viewport center if coordinates are not provided or are too small (likely defaults)
+          let x = shape.x;
+          let y = shape.y;
+          
+          // If coordinates are default/small values, use viewport center
+          if (x === undefined || x < 500) {
+            x = viewport.x + (index * 250) - (shapes.length * 125);
+          }
+          if (y === undefined || y < 500) {
+            y = viewport.y;
+          }
+          
+          const w = shape.props?.w || 200;
+          const h = shape.props?.h || 150;
+          
+          console.log("Creating shape at:", x, y, "with props:", shape.props); // Debug log
+
+          // Get label text
+          const labelText = shape.label || shape.props?.text || "";
+
+          // Remove text from props if it exists (tldraw v2 doesn't support it)
+          const cleanProps = { ...shape.props };
+          delete cleanProps.text;
+
+          try {
+            // Create the geo shape
+            editor.createShapes([{
+              type: shape.type || "geo",
+              x,
+              y,
+              props: {
+                ...cleanProps,
+                w,
+                h,
+              },
+            }]);
+            
+            console.log("Shape created successfully"); // Debug log
+          } catch (err) {
+            console.error("Failed to create shape:", err); // Debug log
+          }
+        });
+
+        toast.success(data.message || "Shapes added!", { id: "ai-prompt" });
+      } else if (data.action === "add_flowchart" || data.action === "add_diagram") {
+        // Add flowchart/diagram nodes
+        const nodes = data.data.nodes || [];
+        const edges = data.data.edges || [];
+        const viewport = editor.getViewportScreenCenter();
+        const nodeIds: Record<string, any> = {};
+
+        console.log("Creating flowchart with", nodes.length, "nodes and", edges.length, "edges");
+
+        // Create all nodes and store their IDs
+        
+        nodes.forEach((node: any, index: number) => {
+          const cleanProps = { ...node.props };
+          delete cleanProps.text; // Remove text from geo props
+          
+          const labelText = node.label || node.props?.text || "";
+          
+          const x = viewport.x + (node.x || 0) - 400;
+          const y = viewport.y + (node.y || 0) - 300;
+          const w = node.props?.w || 200;
+          const h = node.props?.h || 100;
+          
+          try {
+            // Create the geo shape
+            const createdShapes = editor.createShapes([{
+              type: node.type || "geo",
+              x,
+              y,
+              props: {
+                ...cleanProps,
+                w,
+                h,
+              },
+            }]);
+            
+            // Get the shape ID
+            const allShapes = editor.getCurrentPageShapes();
+            const lastShape = allShapes[allShapes.length - 1];
+            
+            if (lastShape) {
+              nodeIds[node.id] = lastShape.id;
+              console.log("Created node:", node.id, "with shape ID:", lastShape.id);
+            }
+          } catch (err) {
+            console.error("Failed to create node:", node.id, err);
+          }
+        });
+
+        // Create arrows between nodes after a delay
+        setTimeout(() => {
+          console.log("Creating arrows between", edges.length, "edges");
+          console.log("Node IDs:", nodeIds);
+          
+          edges.forEach((edge: any) => {
+            const fromShapeId = nodeIds[edge.from];
+            const toShapeId = nodeIds[edge.to];
+            
+            console.log(`Attempting arrow: ${edge.from} (${fromShapeId}) -> ${edge.to} (${toShapeId})`);
+            
+            if (fromShapeId && toShapeId) {
+              try {
+                // Get the shapes to find their positions
+                const fromShape = editor.getShape(fromShapeId);
+                const toShape = editor.getShape(toShapeId);
+                
+                if (fromShape && toShape) {
+                  // Create arrow with proper start/end coordinates
+                  editor.createShapes([{
+                    type: "arrow",
+                    props: {
+                      start: {
+                        x: fromShape.x + (fromShape.props as any).w / 2,
+                        y: fromShape.y + (fromShape.props as any).h,
+                      },
+                      end: {
+                        x: toShape.x + (toShape.props as any).w / 2,
+                        y: toShape.y,
+                      },
+                    },
+                  }]);
+                  console.log("Created arrow from", edge.from, "to", edge.to);
+                } else {
+                  console.warn("Could not find shapes for arrow");
+                }
+              } catch (err) {
+                console.error("Failed to create arrow:", edge.from, "->", edge.to, err);
+              }
+            } else {
+              console.warn("Missing node ID for edge:", edge.from, "->", edge.to);
+            }
+          });
+        }, 300);
+
+        toast.success(data.message || "Diagram created!", { id: "ai-prompt" });
+      } else if (data.action === "style_update") {
+        // Update styles of selected shapes
+        const selectedShapes = editor.getSelectedShapes();
+        if (selectedShapes.length === 0) {
+          toast.info("No shapes selected to style", { id: "ai-prompt" });
+        } else {
+          const styles = data.data.styles || {};
+          selectedShapes.forEach((shape) => {
+            editor.updateShape({
+              id: shape.id,
+              type: shape.type,
+              props: {
+                ...shape.props,
+                ...styles,
+              },
+            });
+          });
+          toast.success(data.message || "Styles updated!", { id: "ai-prompt" });
+        }
+      } else if (data.action === "describe") {
+        // Show description
+        toast.success(data.data.description || data.message, { id: "ai-prompt", duration: 5000 });
+      } else {
+        toast.info(data.message || "AI processed your request", { id: "ai-prompt" });
+      }
 
       setPrompt("");
-    } catch (error) {
-      toast.error("Failed to process AI prompt", {
+    } catch (error: any) {
+      console.error("AI prompt error:", error);
+
+      // Try to get error details from response
+      let errorMessage = "Failed to process AI prompt";
+      let errorDescription = "Please try again.";
+
+      if (error.message) {
+        errorMessage = error.message;
+      }
+
+      // Check if it's an API key issue
+      if (error.message?.includes("GEMINI_API_KEY")) {
+        errorDescription = "Gemini API key is not configured. Please contact the administrator.";
+      }
+
+      toast.error(errorMessage, {
         id: "ai-prompt",
-        description: "Please try again.",
+        description: errorDescription,
+        duration: 5000,
       });
     } finally {
       setAILoading(false);
