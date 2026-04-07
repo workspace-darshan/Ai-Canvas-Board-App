@@ -231,6 +231,17 @@ export default function Toolbar() {
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [isEditorReady, setIsEditorReady] = useState(false);
+
+  // Check if editor is ready
+  useEffect(() => {
+    if (editor) {
+      setIsEditorReady(true);
+      console.log("Editor is ready in Toolbar");
+    } else {
+      setIsEditorReady(false);
+    }
+  }, [editor]);
 
   // Close more menu when clicking outside
   useEffect(() => {
@@ -251,6 +262,8 @@ export default function Toolbar() {
    * and the actual tldraw editor tool.
    */
   const handleToolSelect = (tool: (typeof MAIN_TOOLS)[number] | (typeof EXTRA_TOOLS)[number]) => {
+    console.log("Tool selected:", tool.id, "Editor available:", !!editor, "Editor ready:", isEditorReady);
+    
     // Special case: icon tool opens picker instead of changing tool
     if (tool.id === "icon") {
       setIsIconPickerOpen(true);
@@ -306,15 +319,36 @@ export default function Toolbar() {
 
     setActiveTool(tool.id);
 
-    if (!editor) return;
+    if (!editor) {
+      console.error("Editor not available! Waiting for editor to be ready...");
+      // Retry after a short delay
+      setTimeout(() => {
+        const currentEditor = useCanvasStore.getState().editor;
+        if (currentEditor) {
+          console.log("Editor now available, retrying tool selection");
+          if (tool.tldrawTool === "geo" && tool.geoType) {
+            setCurrentGeoType(tool.geoType);
+            currentEditor.setStyleForNextShapes(GeoShapeGeoStyle, tool.geoType as never);
+            currentEditor.setCurrentTool("geo");
+          } else {
+            currentEditor.setCurrentTool(tool.tldrawTool);
+          }
+        }
+      }, 500);
+      return;
+    }
 
     // For geo shapes, set the geo style FIRST, then switch tool
     if (tool.tldrawTool === "geo" && tool.geoType) {
+      console.log("Setting geo type:", tool.geoType);
       setCurrentGeoType(tool.geoType);
       editor.setStyleForNextShapes(GeoShapeGeoStyle, tool.geoType as never);
       editor.setCurrentTool("geo");
+      console.log("Current tool after setting:", editor.getCurrentToolId());
     } else {
+      console.log("Setting tool:", tool.tldrawTool);
       editor.setCurrentTool(tool.tldrawTool);
+      console.log("Current tool after setting:", editor.getCurrentToolId());
     }
   };
 

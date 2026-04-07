@@ -52,28 +52,23 @@ export default function CollaborativeCanvas() {
       });
 
       // Load initial snapshot from Liveblocks
-      if (snapshot && snapshot.store && !isLoadingRef.current) {
-        isLoadingRef.current = true;
-        try {
-          const records = Object.values(snapshot.store);
-          if (records.length > 0) {
+      if (snapshot && snapshot.store) {
+        const records = Object.values(snapshot.store);
+        if (records.length > 0 && !isLoadingRef.current) {
+          isLoadingRef.current = true;
+          try {
             editor.store.mergeRemoteChanges(() => {
               editor.store.put(records as any);
             });
-            // Mark content as loaded after shapes are rendered
-            setTimeout(() => setIsContentLoaded(true), 300);
-          } else {
-            // Empty board, show immediately
-            setIsContentLoaded(true);
+            console.log("Loaded", records.length, "shapes from Liveblocks");
+          } catch (e) {
+            console.error("Failed to load snapshot:", e);
           }
-        } catch (e) {
-          console.error("Failed to load snapshot:", e);
-          setIsContentLoaded(true); // Show canvas even if loading fails
         }
-      } else {
-        // No content to load, show canvas immediately
-        setIsContentLoaded(true);
       }
+      
+      // Always show canvas after mount
+      setIsContentLoaded(true);
 
       // Track selection changes
       const handleSelectionChange = () => {
@@ -118,18 +113,25 @@ export default function CollaborativeCanvas() {
     [setEditor, setZoomLevel, currentUser, updateSnapshot, updateMyPresence]
   );
 
-  // Listen for remote changes from Liveblocks
+  // Listen for remote changes from Liveblocks (from other users)
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor || !snapshot || !snapshot.store || isLoadingRef.current) return;
+    if (!editor || !snapshot || !snapshot.store) return;
+    
+    // Skip if this is the initial load
+    if (isLoadingRef.current) {
+      isLoadingRef.current = false;
+      return;
+    }
 
     try {
-      editor.store.mergeRemoteChanges(() => {
-        const records = Object.values(snapshot.store);
-        if (records.length > 0) {
+      const records = Object.values(snapshot.store);
+      if (records.length > 0) {
+        editor.store.mergeRemoteChanges(() => {
           editor.store.put(records as any);
-        }
-      });
+        });
+        console.log("Applied remote changes:", records.length, "shapes");
+      }
     } catch (e) {
       console.error("Failed to apply remote changes:", e);
     }
